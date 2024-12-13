@@ -5,7 +5,6 @@
 #include <inc/kbdreg.h>
 #include <inc/string.h>
 #include <inc/assert.h>
-
 #include <kern/console.h>
 
 static void cons_intr(int (*proc)(void));
@@ -192,6 +191,10 @@ cga_putc(int c)
 	}
 
 	// What is the purpose of this?
+	// When the buffer gets filled tested by crt_pos >= CRT_SIZE
+	// The first row is cleared and all other rows are shifted by 1 row
+	// This frees up the last row.
+	// On console this looks like console moving up by oen row.
 	if (crt_pos >= CRT_SIZE) {
 		int i;
 
