@@ -59,15 +59,30 @@ int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
-	uint32_t *ebp  = (uint32_t *)read_ebp();
-	uint32_t eip   = (uint32_t)*(ebp + 1);
-	uint32_t arg_0 = (uint32_t)*(ebp + 2);
-	uint32_t arg_1 = (uint32_t)*(ebp + 3);
-	uint32_t arg_2 = (uint32_t)*(ebp + 4);
-	uint32_t arg_3 = (uint32_t)*(ebp + 5);
-	uint32_t arg_4 = (uint32_t)*(ebp + 6);
+	uint32_t *ebp, *prev_ebp;
+	uint32_t eip, arg_0, arg_1, arg_2, arg_3, arg_4;
 
-	cprintf("ebp %x eip %x args %x %x %x %x %x\n", ebp, eip, arg_0, arg_1, arg_2, arg_3, arg_4);
+	ebp = (uint32_t *)read_ebp();
+
+	for (int i = 0; i < 5; i++) {
+
+		// Break if ebp is 0x0.
+		// ebp was set to 0x0 in kern/entry.S when
+		// setting up the kernel stack.
+		if (ebp == 0x0) {
+			break;
+		}
+
+		prev_ebp  = (uint32_t *)*(ebp + 0);
+		eip       = *(ebp + 1);
+		arg_0     = *(ebp + 2);
+		arg_1     = *(ebp + 3);
+		arg_2     = *(ebp + 4);
+		arg_3     = *(ebp + 5);
+		arg_4     = *(ebp + 6);
+		cprintf("ebp %x eip %x args %x %x %x %x %x\n", ebp, eip, arg_0, arg_1, arg_2, arg_3, arg_4);
+		ebp = prev_ebp;
+	}
 	return 0;
 }
 
