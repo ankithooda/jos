@@ -58,30 +58,42 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-	// Your code here.
-	uint32_t *ebp, *prev_ebp;
+
+	uintptr_t*ebp, *prev_ebp;
 	uint32_t eip, arg_0, arg_1, arg_2, arg_3, arg_4;
+
+	struct Eipdebuginfo debug_info;
 
 	ebp = (uint32_t *)read_ebp();
 
-	for (int i = 0; i < 5; i++) {
+	// Loop break if ebp is 0x0.
+	// ebp was set to 0x0 in kern/entry.S when
+	// setting up the kernel stack.
 
-		// Break if ebp is 0x0.
-		// ebp was set to 0x0 in kern/entry.S when
-		// setting up the kernel stack.
-		if (ebp == 0x0) {
-			break;
-		}
+	while (ebp != 0x0) {
 
-		prev_ebp  = (uint32_t *)*(ebp + 0);
 		eip       = *(ebp + 1);
+
+		debuginfo_eip(eip, &debug_info);
+
 		arg_0     = *(ebp + 2);
 		arg_1     = *(ebp + 3);
 		arg_2     = *(ebp + 4);
 		arg_3     = *(ebp + 5);
 		arg_4     = *(ebp + 6);
-		cprintf("ebp %x eip %x args %x %x %x %x %x\n", ebp, eip, arg_0, arg_1, arg_2, arg_3, arg_4);
-		ebp = prev_ebp;
+		cprintf("ebp %x eip %x args %08x %08x %08x %08x %08x\n", ebp, eip, arg_0, arg_1, arg_2, arg_3, arg_4);
+		cprintf(
+			"\t%s:%d: %.*s+%x %d\n",
+			debug_info.eip_file,
+			debug_info.eip_line,
+			debug_info.eip_fn_namelen,
+			debug_info.eip_fn_name,
+			debug_info.eip_fn_addr,
+			debug_info.eip_fn_narg
+			);
+
+		// Previous frame pointer is stored at *ebp.
+		ebp = (uintptr_t *)*ebp;
 	}
 	return 0;
 }
