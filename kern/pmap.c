@@ -101,6 +101,10 @@ boot_alloc(uint32_t n)
 	// nextfree.  Make sure nextfree is kept aligned
 	// to a multiple of PGSIZE.
 	//
+
+	if (n == 0) {
+		return nextfree;
+	}
 	result = nextfree;
 	nextfree = ROUNDUP((char *) (nextfree + n), PGSIZE);
 
@@ -142,9 +146,6 @@ mem_init(void)
 	kern_pgdir[PDX(UVPT)] = PADDR(kern_pgdir) | PTE_U | PTE_P;
 
 
-	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
-
 	//////////////////////////////////////////////////////////////////////
 	// Allocate an array of npages 'struct PageInfo's and store it in 'pages'.
 	// The kernel uses this array to keep track of physical pages: for
@@ -152,6 +153,15 @@ mem_init(void)
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
+	pages = (struct PageInfo *)boot_alloc(npages * sizeof(struct PageInfo));
+
+	// I have to iterate all PageInfo sructs cause and call memset for each struct
+	// cause I don't know how much
+	// pages boot_alloc has allocated.
+	// Maybe boot_alloc should memset to zero.
+	for (int p = 0; p < npages; p++) {
+		memset(pages + p, 0, sizeof(struct PageInfo));
+	}
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -165,6 +175,9 @@ mem_init(void)
 	check_page_free_list(1);
 	check_page_alloc();
 	check_page();
+
+	// Remove this line when you're ready to test this function.
+	panic("mem_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// Now we set up virtual memory
@@ -256,6 +269,17 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
 	size_t i;
+
+	// First 4096 Bytes or 4KB or the First Physical Page is not free
+	// PGSIZE -> npages_basemem * PGSIZE - Free
+	// [IOPHYSMEM, EXTPHYSMEM)           - Not Free
+	// EXTPHYSMEM, ...)                  - Kernel part is not free
+	// What is the end after EXTPHYSMEM  - value returned by bootalloc
+
+	// First physical page contains IVT setup by BIOS.
+	pages[0].pp_ref = 0;
+	pages[0].pp_link = 0;
+
 	for (i = 0; i < npages; i++) {
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
