@@ -332,8 +332,22 @@ page_init(void)
 struct PageInfo *
 page_alloc(int alloc_flags)
 {
-	// Fill this function in
-	return 0;
+	struct PageInfo *free_page;
+
+	// No free pages, early return NULL
+	if (!page_free_list) {
+		return NULL;
+	}
+
+	free_page = page_free_list;
+	page_free_list = page_free_list->pp_link;
+	free_page->pp_link = NULL;
+
+	if (alloc_flags & ALLOC_ZERO) {
+		memset(page2kva(free_page), 0, PGSIZE);
+	}
+
+	return free_page;
 }
 
 //
@@ -346,6 +360,11 @@ page_free(struct PageInfo *pp)
 	// Fill this function in
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
+	if (pp->pp_ref != 0) {
+		panic("Physical Page has non-zero references");
+	}
+	pp->pp_link = page_free_list;
+	page_free_list = pp;
 }
 
 //
