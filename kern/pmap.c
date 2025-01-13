@@ -271,19 +271,49 @@ page_init(void)
 	size_t i;
 
 	// First 4096 Bytes or 4KB or the First Physical Page is not free
-	// PGSIZE -> npages_basemem * PGSIZE - Free
-	// [IOPHYSMEM, EXTPHYSMEM)           - Not Free
-	// EXTPHYSMEM, ...)                  - Kernel part is not free
-	// What is the end after EXTPHYSMEM  - value returned by bootalloc
+	// [PGSIZE -> npages_basemem * PGSIZE)   - Free
+	// [IOPHYSMEM, EXTPHYSMEM)               - Not Free
+	// EXTPHYSMEM, ...)                      - Kernel part is not free
+	// What is the end after EXTPHYSMEM      - value returned by bootalloc(0)
+	// [bootalloc(0), npages * PGSIZE)       - Free
 
-	// First physical page contains IVT setup by BIOS.
-	pages[0].pp_ref = 0;
-	pages[0].pp_link = 0;
+	// First physical page is *not free*; contains IVT setup by BIOS.
+	pages[0].pp_ref = 1;
+	pages[0].pp_link = NULL;
 
-	for (i = 0; i < npages; i++) {
-		pages[i].pp_ref = 0;
-		pages[i].pp_link = page_free_list;
-		page_free_list = &pages[i];
+	struct PageInfo *entry;
+
+	// [PGSIZE, npages_basemem * PGSIZE) is *free*.
+	for (physaddr_t pa = PGSIZE; pa < npages_basemem * PGSIZE; pa += PGSIZE) {
+		entry = pa2page(pa);
+		entry->pp_link = page_free_list;
+		entry->pp_ref  = 0;
+
+		page_free_list = entry;
+	}
+
+	// [IOPHYSMEM, EXTPHYSMEM) is *not free*.
+	for (physaddr_t pa = IOPHYSMEM; pa < EXTPHYSMEM; pa += PGSIZE) {
+		entry = pa2page(pa);
+		entry->pp_link = NULL;
+		entry->pp_ref  = 1;
+	}
+
+	// EXTPHYSMEM, last_kernel_physaddr) is *not free*.
+	physaddr_t last_kernel_physaddr = (physaddr_t)PADDR(boot_alloc(0));
+	for (physaddr_t pa = EXTPHYSMEM; pa < last_kernel_physaddr; pa += PGSIZE) {
+		entry = pa2page(pa);
+		entry->pp_link = NULL;
+		entry->pp_ref  = 1;
+	}
+
+	// [last_kernel_physaddr, npages*PGSIZE) is *free*.
+	for (physaddr_t pa = last_kernel_physaddr; pa < npages * PGSIZE; pa += PGSIZE) {
+		entry = pa2page(pa);
+		entry->pp_link = page_free_list;
+		entry->pp_ref  = 0;
+
+		page_free_list = entry;
 	}
 }
 
